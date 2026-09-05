@@ -1,4 +1,4 @@
-"""Ai Gaming - a friendly multilingual Discord gaming companion."""
+"""Ai Gaming - Discord gaming companion."""
 
 from __future__ import annotations
 
@@ -15,34 +15,66 @@ from discord import app_commands
 from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError
 
 
+# ==============================
+# SETTINGS
+# ==============================
+
 BOT_NAME = "Ai Gaming"
-AI_MODEL = os.getenv(
+
+OPENROUTER_MODEL = os.getenv(
     "OPENROUTER_MODEL",
-    os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini"),
+    "openrouter/free",
 )
+
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
 MAX_MESSAGE_LENGTH = 2_000
 MAX_HISTORY_MESSAGES = 10
 USER_COOLDOWN_SECONDS = 8
 MAX_CONCURRENT_REQUESTS = 3
+
 CONFIG_PATH = Path("data/bot_config.json")
 
 
+# ==============================
+# AI PERSONALITY
+# ==============================
+
 SYSTEM_PROMPT = """You are Ai Gaming, a friendly, funny, energetic gaming companion on Discord.
 
-Be warm, playful, encouraging, and concise.
+Personality:
+- Friendly, funny, energetic and helpful.
+- Talk like a gaming friend.
+- Celebrate wins and joke naturally.
+- Give useful gaming advice.
+- Keep replies reasonably short for Discord.
+- Never be hateful, sexually explicit, or unsafe.
+- Do not encourage cheating, harassment, self-harm, violence, or illegal activity.
 
-Understand Egyptian Arabic, Modern Standard Arabic, Franco Arabic, English,
-and mixed messages.
+Language:
+- Understand Egyptian Arabic.
+- Understand Modern Standard Arabic.
+- Understand Franco Arabic.
+- Understand English.
+- Understand mixed Arabic and English.
 
-Reply in the same language and style used by the user.
+Always reply in the same language and style the user uses.
 
-You can discuss games, builds, strategies, esports, hardware, memes,
-and everyday chat.
+If the user speaks Egyptian Arabic, reply naturally in Egyptian Arabic.
+If the user uses Franco Arabic, reply in readable Franco Arabic.
+If the user mixes Arabic and English, you can mix naturally.
 
-Never encourage cheating, harassment, self-harm, violence, or illegal activity.
+Discord behavior:
+- Answer directly.
+- Avoid unnecessary introductions.
+- Avoid excessive emojis.
+- Keep replies suitable for Discord.
 """
 
+
+# ==============================
+# LOGGING
+# ==============================
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,42 +84,71 @@ logging.basicConfig(
 logger = logging.getLogger("ai-gaming")
 
 
+# ==============================
+# CONFIG
+# ==============================
+
 class BotConfig:
+
     def __init__(self, path: Path) -> None:
         self.path = path
         self.enabled_channels: set[int] = set()
         self._lock = asyncio.Lock()
 
     async def load(self) -> None:
+
         if not self.path.exists():
             return
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-            channels = raw.get("enabled_channels", [])
+
+            raw = json.loads(
+                self.path.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+            channels = raw.get(
+                "enabled_channels",
+                []
+            )
+
             self.enabled_channels = {
-                int(channel_id) for channel_id in channels
+                int(channel_id)
+                for channel_id in channels
             }
-        except (OSError, ValueError, TypeError) as error:
+
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+        ) as error:
+
             logger.warning(
                 "Could not read bot config: %s",
                 error,
             )
 
     async def save(self) -> None:
+
         async with self._lock:
+
             try:
+
                 self.path.parent.mkdir(
                     parents=True,
                     exist_ok=True,
                 )
 
-                temporary_path = self.path.with_suffix(".tmp")
+                temporary_path = (
+                    self.path.with_suffix(".tmp")
+                )
 
                 temporary_path.write_text(
                     json.dumps(
                         {
-                            "enabled_channels": sorted(
+                            "enabled_channels":
+                            sorted(
                                 self.enabled_channels
                             )
                         },
@@ -96,25 +157,53 @@ class BotConfig:
                     encoding="utf-8",
                 )
 
-                temporary_path.replace(self.path)
+                temporary_path.replace(
+                    self.path
+                )
 
             except OSError as error:
+
                 logger.error(
-                    "Could not save bot config: %s",
+                    "Could not save config: %s",
                     error,
                 )
 
-    async def enable(self, channel_id: int) -> None:
-        self.enabled_channels.add(channel_id)
+    async def enable(
+        self,
+        channel_id: int,
+    ) -> None:
+
+        self.enabled_channels.add(
+            channel_id
+        )
+
         await self.save()
 
-    async def disable(self, channel_id: int) -> None:
-        self.enabled_channels.discard(channel_id)
+    async def disable(
+        self,
+        channel_id: int,
+    ) -> None:
+
+        self.enabled_channels.discard(
+            channel_id
+        )
+
         await self.save()
 
-    def is_enabled(self, channel_id: int) -> bool:
-        return channel_id in self.enabled_channels
+    def is_enabled(
+        self,
+        channel_id: int,
+    ) -> bool:
 
+        return (
+            channel_id
+            in self.enabled_channels
+        )
+
+
+# ==============================
+# BOT
+# ==============================
 
 class AiGamingBot(discord.Client):
 
@@ -125,24 +214,26 @@ class AiGamingBot(discord.Client):
         intents.message_content = True
         intents.messages = True
         intents.guilds = True
+        intents.voice_states = True
 
-        super().__init__(intents=intents)
+        super().__init__(
+            intents=intents
+        )
 
-        self.tree = app_commands.CommandTree(self)
+        self.tree = app_commands.CommandTree(
+            self
+        )
 
-        self.config = BotConfig(CONFIG_PATH)
+        self.config = BotConfig(
+            CONFIG_PATH
+        )
 
-        api_key = os.getenv("OPENROUTER_API_KEY")
-
-        if not api_key:
-            raise RuntimeError(
-                "OPENROUTER_API_KEY is missing from Replit Secrets."
-            )
-
-        self.openai = AsyncOpenAI(
-            api_key=api_key,
+        # OpenRouter
+        self.ai = AsyncOpenAI(
+            api_key=os.environ[
+                "OPENROUTER_API_KEY"
+            ],
             base_url=OPENROUTER_BASE_URL,
-            default_headers={"X-Title": BOT_NAME},
         )
 
         self.history: dict[
@@ -154,19 +245,32 @@ class AiGamingBot(discord.Client):
             )
         )
 
-        self.last_message_at: dict[int, float] = {}
+        self.last_message_at: dict[
+            int,
+            float
+        ] = {}
 
-        self.request_semaphore = asyncio.Semaphore(
-            MAX_CONCURRENT_REQUESTS
+        self.request_semaphore = (
+            asyncio.Semaphore(
+                MAX_CONCURRENT_REQUESTS
+            )
         )
 
-        self.started_at = time.monotonic()
+        self.started_at = (
+            time.monotonic()
+        )
+
+    # ==============================
+    # STARTUP
+    # ==============================
 
     async def setup_hook(self) -> None:
 
         await self.config.load()
 
-        synced_commands = await self.tree.sync()
+        synced_commands = (
+            await self.tree.sync()
+        )
 
         logger.info(
             "Synced %d slash commands",
@@ -178,11 +282,15 @@ class AiGamingBot(discord.Client):
         if self.user is not None:
 
             logger.info(
-                "Logged in as %s (%s) | serving %d guild(s)",
+                "Logged in as %s (%s) | %d server(s)",
                 self.user,
                 self.user.id,
                 len(self.guilds),
             )
+
+    # ==============================
+    # CHAT
+    # ==============================
 
     async def on_message(
         self,
@@ -198,21 +306,10 @@ class AiGamingBot(discord.Client):
         if self.user is None:
             return
 
-        is_direct_mention = (
-            self.user in message.mentions
-        )
+        # IMPORTANT:
+        # Bot responds ONLY when mentioned.
 
-        is_enabled_channel = (
-            message.guild is not None
-            and self.config.is_enabled(
-                message.channel.id
-            )
-        )
-
-        if (
-            not is_direct_mention
-            and not is_enabled_channel
-        ):
+        if self.user not in message.mentions:
             return
 
         user_text = self._clean_message(
@@ -220,16 +317,16 @@ class AiGamingBot(discord.Client):
         )
 
         if not user_text:
+
             user_text = (
-                "Hey Ai Gaming, say hi and ask me "
-                "what we're playing!"
+                "Hey Ai Gaming, say hi!"
             )
 
         if len(user_text) > MAX_MESSAGE_LENGTH:
 
             await message.reply(
-                "That message is too long. "
-                "Keep it under 2,000 characters!",
+                "Your message is too long 😅 "
+                "Keep it under 2,000 characters.",
                 mention_author=False,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
@@ -274,13 +371,13 @@ class AiGamingBot(discord.Client):
 
         now = time.monotonic()
 
-        last_message = self.last_message_at.get(
+        last = self.last_message_at.get(
             user_id,
             0,
         )
 
         if (
-            now - last_message
+            now - last
             < USER_COOLDOWN_SECONDS
         ):
             return False
@@ -306,31 +403,25 @@ class AiGamingBot(discord.Client):
 
         try:
 
-            logger.info(
-                "Sending AI request | channel=%s | model=%s",
-                channel_id,
-                AI_MODEL,
-            )
-
             async with message.channel.typing():
 
-                completion = await self.openai.chat.completions.create(
-
-                    model=AI_MODEL,
-
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": SYSTEM_PROMPT,
-                        },
-                        *list(
-                            self.history[channel_id]
-                        ),
-                    ],
-
-                    max_tokens=450,
-
-                    temperature=0.85,
+                completion = (
+                    await self.ai.chat.completions.create(
+                        model=OPENROUTER_MODEL,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": SYSTEM_PROMPT,
+                            },
+                            *list(
+                                self.history[
+                                    channel_id
+                                ]
+                            ),
+                        ],
+                        max_tokens=450,
+                        temperature=0.85,
+                    )
                 )
 
             response_text = (
@@ -345,7 +436,7 @@ class AiGamingBot(discord.Client):
 
                 response_text = (
                     "My gamer thoughts got stuck "
-                    "in the loading screen. Try again!"
+                    "in the loading screen 😅"
                 )
 
             self.history[channel_id].append(
@@ -360,132 +451,41 @@ class AiGamingBot(discord.Client):
                 response_text,
             )
 
-            logger.info(
-                "AI request succeeded | channel=%s",
-                channel_id,
+        except RateLimitError:
+
+            logger.exception(
+                "OpenRouter rate limit"
             )
-
-        except RateLimitError as error:
-
-            logger.error("")
-            logger.error(
-                "========== AI RATE LIMIT ERROR =========="
-            )
-
-            logger.error(
-                "Type: %s",
-                type(error).__name__,
-            )
-
-            logger.error(
-                "Status code: %s",
-                getattr(
-                    error,
-                    "status_code",
-                    "unknown",
-                ),
-            )
-
-            logger.error(
-                "Message: %s",
-                str(error),
-            )
-
-            logger.error(
-                "Request ID: %s",
-                getattr(
-                    error,
-                    "request_id",
-                    "unknown",
-                ),
-            )
-
-            logger.error(
-                "=============================================="
-            )
-
-            logger.error("")
 
             await message.reply(
-                "⚠️ The AI service rejected that request. "
-                "Please check that the OpenRouter account has available credits.",
+                "The free AI is busy right now 😅 "
+                "Try again in a few seconds.",
                 mention_author=False,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
 
-        except APIConnectionError as error:
+        except APIConnectionError:
 
-            logger.error("")
-            logger.error(
-                "========== AI CONNECTION ERROR =========="
+            logger.exception(
+                "OpenRouter connection error"
             )
-
-            logger.error(
-                "Type: %s",
-                type(error).__name__,
-            )
-
-            logger.error(
-                "Message: %s",
-                str(error),
-            )
-
-            logger.error(
-                "=============================================="
-            )
-
-            logger.error("")
 
             await message.reply(
-                "⚠️ I can't connect to the AI service right now.",
+                "My AI connection lagged 😅 "
+                "Try again in a moment.",
                 mention_author=False,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
 
-        except APIError as error:
+        except APIError:
 
-            logger.error("")
-            logger.error(
-                "========== AI API ERROR =========="
+            logger.exception(
+                "OpenRouter API error"
             )
-
-            logger.error(
-                "Type: %s",
-                type(error).__name__,
-            )
-
-            logger.error(
-                "Status code: %s",
-                getattr(
-                    error,
-                    "status_code",
-                    "unknown",
-                ),
-            )
-
-            logger.error(
-                "Message: %s",
-                str(error),
-            )
-
-            logger.error(
-                "Request ID: %s",
-                getattr(
-                    error,
-                    "request_id",
-                    "unknown",
-                ),
-            )
-
-            logger.error(
-                "========================================"
-            )
-
-            logger.error("")
 
             await message.reply(
-                "⚠️ OpenAI API error. "
-                "Check the Replit Console.",
+                "The AI server had a problem. "
+                "Try again shortly.",
                 mention_author=False,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
@@ -493,36 +493,20 @@ class AiGamingBot(discord.Client):
         except discord.Forbidden:
 
             logger.warning(
-                "Discord permission error in channel %s",
+                "Missing permission in channel %s",
                 channel_id,
             )
 
-        except discord.HTTPException as error:
-
-            logger.error(
-                "Discord HTTP error: %s",
-                error,
-            )
-
-        except Exception as error:
-
-            logger.exception("")
-            logger.exception(
-                "========== UNEXPECTED ERROR =========="
-            )
+        except discord.HTTPException:
 
             logger.exception(
-                "Type: %s",
-                type(error).__name__,
+                "Discord rejected reply"
             )
 
-            logger.exception(
-                "Message: %s",
-                str(error),
-            )
+        except Exception:
 
             logger.exception(
-                "======================================"
+                "Unexpected AI error"
             )
 
     async def _send_long_reply(
@@ -532,11 +516,11 @@ class AiGamingBot(discord.Client):
     ) -> None:
 
         chunks = [
-            response_text[index:index + 1900]
-            for index in range(
+            response_text[i:i + 1_900]
+            for i in range(
                 0,
                 len(response_text),
-                1900,
+                1_900,
             )
         ]
 
@@ -562,13 +546,21 @@ class AiGamingBot(discord.Client):
 
     async def shutdown(self) -> None:
 
-        await self.openai.close()
+        await self.ai.close()
 
         await self.close()
 
 
+# ==============================
+# CREATE BOT
+# ==============================
+
 bot = AiGamingBot()
 
+
+# ==============================
+# /PING
+# ==============================
 
 @bot.tree.command(
     name="ping",
@@ -583,30 +575,197 @@ async def ping(
     )
 
     await interaction.response.send_message(
-        f"Pong! My ping is `{latency_ms}ms`. Ready to game.",
+        f"Pong! `{latency_ms}ms` 🎮",
         ephemeral=True,
     )
 
 
+# ==============================
+# /JOIN
+# ==============================
+
+@bot.tree.command(
+    name="join",
+    description="Make Ai Gaming join your voice channel.",
+)
+@app_commands.guild_only()
+async def join(
+    interaction: discord.Interaction,
+) -> None:
+
+    if interaction.guild is None:
+
+        await interaction.response.send_message(
+            "This command can only be used inside a server.",
+            ephemeral=True,
+        )
+
+        return
+
+    member = interaction.user
+
+    if not isinstance(
+        member,
+        discord.Member,
+    ):
+
+        await interaction.response.send_message(
+            "I couldn't find your server member information.",
+            ephemeral=True,
+        )
+
+        return
+
+    voice_channel = member.voice.channel
+
+    if voice_channel is None:
+
+        await interaction.response.send_message(
+            "🎙️ ادخل Voice Channel الأول وأنا هاجيلك.",
+            ephemeral=True,
+        )
+
+        return
+
+    try:
+
+        # Already connected
+        if interaction.guild.voice_client:
+
+            voice_client = (
+                interaction.guild.voice_client
+            )
+
+            if voice_client.channel.id == voice_channel.id:
+
+                await interaction.response.send_message(
+                    f"🎙️ أنا موجود بالفعل في **{voice_channel.name}**.",
+                    ephemeral=True,
+                )
+
+                return
+
+            await voice_client.move_to(
+                voice_channel
+            )
+
+            await interaction.response.send_message(
+                f"🎙️ نقلت نفسي لـ **{voice_channel.name}**.",
+            )
+
+            return
+
+        # Connect
+        await voice_channel.connect()
+
+        await interaction.response.send_message(
+            f"🎙️ دخلت **{voice_channel.name}** معاك!",
+        )
+
+    except discord.Forbidden:
+
+        await interaction.response.send_message(
+            "❌ معنديش صلاحية أدخل القناة الصوتية.",
+            ephemeral=True,
+        )
+
+    except discord.ClientException:
+
+        await interaction.response.send_message(
+            "❌ مش قادر أدخل القناة الصوتية دلوقتي.",
+            ephemeral=True,
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Could not join voice channel"
+        )
+
+        await interaction.response.send_message(
+            "❌ حصل خطأ وأنا بحاول أدخل الـVoice.",
+            ephemeral=True,
+        )
+
+
+# ==============================
+# /LEAVE
+# ==============================
+
+@bot.tree.command(
+    name="leave",
+    description="Make Ai Gaming leave the voice channel.",
+)
+@app_commands.guild_only()
+async def leave(
+    interaction: discord.Interaction,
+) -> None:
+
+    if interaction.guild is None:
+
+        await interaction.response.send_message(
+            "This command can only be used inside a server.",
+            ephemeral=True,
+        )
+
+        return
+
+    voice_client = (
+        interaction.guild.voice_client
+    )
+
+    if voice_client is None:
+
+        await interaction.response.send_message(
+            "أنا مش داخل أي Voice Channel حاليًا.",
+            ephemeral=True,
+        )
+
+        return
+
+    try:
+
+        await voice_client.disconnect()
+
+        await interaction.response.send_message(
+            "🚪 خرجت من الـVoice Channel.",
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Could not leave voice channel"
+        )
+
+        await interaction.response.send_message(
+            "❌ حصل خطأ وأنا بحاول أخرج.",
+            ephemeral=True,
+        )
+
+
+# ==============================
+# /GAMING
+# ==============================
+
 @bot.tree.command(
     name="gaming",
-    description="Enable or disable natural AI chat in this channel.",
+    description="Manage Ai Gaming channel settings.",
 )
 @app_commands.describe(
-    action="Choose what Ai Gaming should do in this channel."
+    action="Choose an action.",
 )
 @app_commands.choices(
     action=[
         app_commands.Choice(
-            name="Enable chat here",
+            name="Enable",
             value="enable",
         ),
         app_commands.Choice(
-            name="Disable chat here",
+            name="Disable",
             value="disable",
         ),
         app_commands.Choice(
-            name="Show channel status",
+            name="Status",
             value="status",
         ),
     ]
@@ -617,16 +776,22 @@ async def gaming(
     action: app_commands.Choice[str],
 ) -> None:
 
-    if (
-        interaction.guild is None
-        or not isinstance(
-            interaction.channel,
-            discord.TextChannel,
+    if interaction.guild is None:
+
+        await interaction.response.send_message(
+            "Use this command inside a server.",
+            ephemeral=True,
         )
+
+        return
+
+    if not isinstance(
+        interaction.channel,
+        discord.TextChannel,
     ):
 
         await interaction.response.send_message(
-            "Please use this command in a regular server text channel.",
+            "Use this command in a text channel.",
             ephemeral=True,
         )
 
@@ -648,7 +813,7 @@ async def gaming(
         ):
 
             await interaction.response.send_message(
-                "Only server managers can enable or disable my automatic chat.",
+                "Only server managers can change this setting.",
                 ephemeral=True,
             )
 
@@ -661,8 +826,8 @@ async def gaming(
         )
 
         await interaction.response.send_message(
-            "Gaming mode is ON here. Talk naturally and I'll jump in with you.",
-            allowed_mentions=discord.AllowedMentions.none(),
+            "Gaming setting saved.\n"
+            "⚠️ I will STILL reply only when someone mentions me.",
         )
 
     elif action.value == "disable":
@@ -672,8 +837,8 @@ async def gaming(
         )
 
         await interaction.response.send_message(
-            "Gaming mode is OFF here. I'll still answer when someone mentions me directly.",
-            allowed_mentions=discord.AllowedMentions.none(),
+            "Gaming setting disabled.\n"
+            "I will reply only when someone mentions me.",
         )
 
     else:
@@ -687,14 +852,19 @@ async def gaming(
         )
 
         await interaction.response.send_message(
-            f"Gaming mode is **{state}** in this channel.",
+            f"Gaming mode: **{state}**\n"
+            "Reply mode: **Mention Only**",
             ephemeral=True,
         )
 
 
+# ==============================
+# /STATUS
+# ==============================
+
 @bot.tree.command(
     name="status",
-    description="Show Ai Gaming's current status.",
+    description="Show Ai Gaming status.",
 )
 async def status(
     interaction: discord.Interaction,
@@ -704,27 +874,45 @@ async def status(
         (
             time.monotonic()
             - bot.started_at
-        ) // 60
+        )
+        // 60
     )
 
-    enabled_count = len(
-        bot.config.enabled_channels
-    )
+    voice_status = "Not connected"
+
+    if interaction.guild is not None:
+
+        voice_client = (
+            interaction.guild.voice_client
+        )
+
+        if voice_client is not None:
+
+            if voice_client.channel is not None:
+
+                voice_status = (
+                    voice_client.channel.name
+                )
 
     await interaction.response.send_message(
         "\n".join(
             [
-                f"**{BOT_NAME} status**",
+                f"**{BOT_NAME}**",
                 f"Online: `{bot.is_ready()}`",
                 f"Uptime: `{uptime_minutes} minute(s)`",
                 f"Servers: `{len(bot.guilds)}`",
-                f"Gaming channels: `{enabled_count}`",
-                 f"AI model: `{AI_MODEL}`",
+                f"AI model: `{OPENROUTER_MODEL}`",
+                "Chat: `Mention Only`",
+                f"Voice: `{voice_status}`",
             ]
         ),
         ephemeral=True,
     )
 
+
+# ==============================
+# START
+# ==============================
 
 def main() -> None:
 
