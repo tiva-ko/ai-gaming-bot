@@ -1,3 +1,4 @@
+print("🔥🔥🔥 NEW AI GAMING CODE IS RUNNING 🔥🔥🔥")
 """Ai Gaming - a friendly multilingual Discord gaming companion."""
 
 from __future__ import annotations
