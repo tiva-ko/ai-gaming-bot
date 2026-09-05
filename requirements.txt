@@ -1,5 +1,5 @@
-discord.py
-openai>=1.40,<2
+discord.py[voice]
+openai
 PyNaCl
 davey
 discord-ext-voice-recv

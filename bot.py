@@ -523,6 +523,16 @@ class AiGamingBot(discord.Client):
 
         await self.config.load()
 
+        for command in (
+            self.ping,
+            self.join,
+            self.leave,
+            self.gaming,
+            self.status,
+        ):
+            command.binding = self
+            self.tree.add_command(command)
+
         synced = await self.tree.sync()
 
         logger.info(
@@ -1081,11 +1091,12 @@ class AiGamingBot(discord.Client):
     # PING
     # =====================================================
 
-    @bot.tree.command(
+    @app_commands.command(
         name="ping",
         description="Check whether Ai Gaming is online.",
     )
     async def ping(
+        self,
         interaction: discord.Interaction,
     ):
 
@@ -1102,12 +1113,13 @@ class AiGamingBot(discord.Client):
     # JOIN
     # =====================================================
 
-    @bot.tree.command(
+    @app_commands.command(
         name="join",
         description="Join your voice channel and start AI voice.",
     )
     @app_commands.guild_only()
     async def join(
+        self,
         interaction: discord.Interaction,
     ):
 
@@ -1256,12 +1268,13 @@ class AiGamingBot(discord.Client):
     # LEAVE
     # =====================================================
 
-    @bot.tree.command(
+    @app_commands.command(
         name="leave",
         description="Leave the voice channel.",
     )
     @app_commands.guild_only()
     async def leave(
+        self,
         interaction: discord.Interaction,
     ):
 
@@ -1337,7 +1350,7 @@ class AiGamingBot(discord.Client):
     # GAMING
     # =====================================================
 
-    @bot.tree.command(
+    @app_commands.command(
         name="gaming",
         description="Manage Ai Gaming settings.",
     )
@@ -1362,6 +1375,7 @@ class AiGamingBot(discord.Client):
     )
     @app_commands.guild_only()
     async def gaming(
+        self,
         interaction: discord.Interaction,
         action: app_commands.Choice[str],
     ):
@@ -1449,11 +1463,12 @@ class AiGamingBot(discord.Client):
     # STATUS
     # =====================================================
 
-    @bot.tree.command(
+    @app_commands.command(
         name="status",
         description="Show Ai Gaming status.",
     )
     async def status(
+        self,
         interaction: discord.Interaction,
     ):
 
