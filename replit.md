@@ -1,6 +1,6 @@
 # Ai Gaming Discord Bot
 
-Ai Gaming is a continuously running Python Discord bot that chats with gamers through OpenAI.
+Ai Gaming is a continuously running Python Discord bot that chats with gamers through OpenRouter.
 
 ## Run & Operate
 
@@ -10,7 +10,7 @@ Ai Gaming is a continuously running Python Discord bot that chats with gamers th
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required Replit Secrets: `DISCORD_TOKEN`, `OPENAI_API_KEY`
+- Required Replit Secrets: `DISCORD_TOKEN`, `OPENROUTER_API_KEY`
 
 ## Stack
 
@@ -31,7 +31,7 @@ Ai Gaming is a continuously running Python Discord bot that chats with gamers th
 
 ## Architecture decisions
 
-- OpenAI is called from the bot process with the `OPENAI_API_KEY` Replit Secret; no key is hardcoded.
+- OpenRouter is called through its OpenAI-compatible API with the `OPENROUTER_API_KEY` Replit Secret; no key is hardcoded.
 - Natural chat is opt-in per channel through `/gaming enable`, while direct mentions work everywhere.
 - Enabled channel IDs are stored in a small ignored JSON file so a restart does not silently change behavior.
 - Message history is kept in memory per channel and is never written to disk.

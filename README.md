@@ -1,7 +1,7 @@
 # Ai Gaming
 
 Ai Gaming is a friendly, funny, multilingual Discord gaming companion built with
-Python, `discord.py`, and the OpenAI API.
+Python, `discord.py`, and an OpenAI-compatible AI API through OpenRouter.
 
 It understands English, Arabic, Egyptian Arabic, Franco Arabic, and mixed
 messages. It automatically answers in the same language, script, and general
@@ -26,9 +26,12 @@ energy that the user used.
 In the Replit Secrets tool, add:
 
 - `DISCORD_TOKEN` — the token from your Discord Developer Portal bot
-- `OPENAI_API_KEY` — your OpenAI API key
+- `OPENROUTER_API_KEY` — your OpenRouter API key
 
-The bot refuses to start if either secret is missing.
+The bot refuses to start if either secret is missing. OpenRouter uses an
+OpenAI-compatible API, so the bot keeps the same chat behavior while allowing
+you to choose an available model through the `OPENROUTER_MODEL` environment
+variable.
 
 ## 2. Create and invite the Discord bot
 

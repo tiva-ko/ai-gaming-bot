@@ -16,7 +16,11 @@ from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError
 
 
 BOT_NAME = "Ai Gaming"
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+AI_MODEL = os.getenv(
+    "OPENROUTER_MODEL",
+    os.getenv("OPENAI_MODEL", "openai/gpt-4o-mini"),
+)
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 MAX_MESSAGE_LENGTH = 2_000
 MAX_HISTORY_MESSAGES = 10
 USER_COOLDOWN_SECONDS = 8
@@ -128,15 +132,17 @@ class AiGamingBot(discord.Client):
 
         self.config = BotConfig(CONFIG_PATH)
 
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("OPENROUTER_API_KEY")
 
         if not api_key:
             raise RuntimeError(
-                "OPENAI_API_KEY is missing from Replit Secrets."
+                "OPENROUTER_API_KEY is missing from Replit Secrets."
             )
 
         self.openai = AsyncOpenAI(
-            api_key=api_key
+            api_key=api_key,
+            base_url=OPENROUTER_BASE_URL,
+            default_headers={"X-Title": BOT_NAME},
         )
 
         self.history: dict[
@@ -301,16 +307,16 @@ class AiGamingBot(discord.Client):
         try:
 
             logger.info(
-                "Sending OpenAI request | channel=%s | model=%s",
+                "Sending AI request | channel=%s | model=%s",
                 channel_id,
-                OPENAI_MODEL,
+                AI_MODEL,
             )
 
             async with message.channel.typing():
 
                 completion = await self.openai.chat.completions.create(
 
-                    model=OPENAI_MODEL,
+                    model=AI_MODEL,
 
                     messages=[
                         {
@@ -355,7 +361,7 @@ class AiGamingBot(discord.Client):
             )
 
             logger.info(
-                "OpenAI request succeeded | channel=%s",
+                "AI request succeeded | channel=%s",
                 channel_id,
             )
 
@@ -363,7 +369,7 @@ class AiGamingBot(discord.Client):
 
             logger.error("")
             logger.error(
-                "========== OPENAI RATE LIMIT ERROR =========="
+                "========== AI RATE LIMIT ERROR =========="
             )
 
             logger.error(
@@ -401,8 +407,8 @@ class AiGamingBot(discord.Client):
             logger.error("")
 
             await message.reply(
-                "⚠️ OpenAI rejected the request. "
-                "Check the Replit Console for the exact error.",
+                "⚠️ The AI service rejected that request. "
+                "Please check that the OpenRouter account has available credits.",
                 mention_author=False,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
@@ -411,7 +417,7 @@ class AiGamingBot(discord.Client):
 
             logger.error("")
             logger.error(
-                "========== OPENAI CONNECTION ERROR =========="
+                "========== AI CONNECTION ERROR =========="
             )
 
             logger.error(
@@ -431,7 +437,7 @@ class AiGamingBot(discord.Client):
             logger.error("")
 
             await message.reply(
-                "⚠️ I can't connect to OpenAI right now.",
+                "⚠️ I can't connect to the AI service right now.",
                 mention_author=False,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
@@ -440,7 +446,7 @@ class AiGamingBot(discord.Client):
 
             logger.error("")
             logger.error(
-                "========== OPENAI API ERROR =========="
+                "========== AI API ERROR =========="
             )
 
             logger.error(
@@ -713,7 +719,7 @@ async def status(
                 f"Uptime: `{uptime_minutes} minute(s)`",
                 f"Servers: `{len(bot.guilds)}`",
                 f"Gaming channels: `{enabled_count}`",
-                f"AI model: `{OPENAI_MODEL}`",
+                 f"AI model: `{AI_MODEL}`",
             ]
         ),
         ephemeral=True,
@@ -726,7 +732,7 @@ def main() -> None:
         key
         for key in (
             "DISCORD_TOKEN",
-            "OPENAI_API_KEY",
+            "OPENROUTER_API_KEY",
         )
         if not os.getenv(key)
     ]
