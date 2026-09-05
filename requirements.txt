@@ -1,4 +1,3 @@
 discord.py>=2.4,<3
 openai>=1.40,<2
-discord.py>=2.4,<3
-openai>=1.40,<2
+PyNaCl
