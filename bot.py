@@ -1,4 +1,4 @@
-"""Ai Gaming - Discord gaming companion."""
+"""Ai Gaming - Discord AI Gaming Bot."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from discord import app_commands
 from openai import AsyncOpenAI, APIError, APIConnectionError, RateLimitError
 
 
-# ==============================
+# =========================================================
 # SETTINGS
-# ==============================
+# =========================================================
 
 BOT_NAME = "Ai Gaming"
 
@@ -36,33 +36,33 @@ MAX_CONCURRENT_REQUESTS = 3
 CONFIG_PATH = Path("data/bot_config.json")
 
 
-# ==============================
+# =========================================================
 # AI PERSONALITY
-# ==============================
+# =========================================================
 
-SYSTEM_PROMPT = """You are Ai Gaming, a friendly, funny, energetic gaming companion on Discord.
+SYSTEM_PROMPT = """You are Ai Gaming, a friendly, funny and energetic gaming companion on Discord.
 
 Personality:
-- Friendly, funny, energetic and helpful.
+- Be friendly, funny, energetic and helpful.
 - Talk like a gaming friend.
 - Celebrate wins and joke naturally.
 - Give useful gaming advice.
 - Keep replies reasonably short for Discord.
-- Never be hateful, sexually explicit, or unsafe.
-- Do not encourage cheating, harassment, self-harm, violence, or illegal activity.
+- Never be hateful, sexually explicit or unsafe.
+- Do not encourage cheating, harassment, self-harm, violence or illegal activity.
 
-Language:
-- Understand Egyptian Arabic.
-- Understand Modern Standard Arabic.
-- Understand Franco Arabic.
-- Understand English.
-- Understand mixed Arabic and English.
+Languages:
+- Egyptian Arabic
+- Modern Standard Arabic
+- Franco Arabic
+- English
+- Mixed Arabic and English
 
 Always reply in the same language and style the user uses.
 
 If the user speaks Egyptian Arabic, reply naturally in Egyptian Arabic.
 If the user uses Franco Arabic, reply in readable Franco Arabic.
-If the user mixes Arabic and English, you can mix naturally.
+If the user mixes languages, you can mix naturally.
 
 Discord behavior:
 - Answer directly.
@@ -72,9 +72,9 @@ Discord behavior:
 """
 
 
-# ==============================
+# =========================================================
 # LOGGING
-# ==============================
+# =========================================================
 
 logging.basicConfig(
     level=logging.INFO,
@@ -84,9 +84,9 @@ logging.basicConfig(
 logger = logging.getLogger("ai-gaming")
 
 
-# ==============================
-# CONFIG
-# ==============================
+# =========================================================
+# CONFIGURATION
+# =========================================================
 
 class BotConfig:
 
@@ -201,9 +201,9 @@ class BotConfig:
         )
 
 
-# ==============================
+# =========================================================
 # BOT
-# ==============================
+# =========================================================
 
 class AiGamingBot(discord.Client):
 
@@ -260,9 +260,9 @@ class AiGamingBot(discord.Client):
             time.monotonic()
         )
 
-    # ==============================
+    # =====================================================
     # STARTUP
-    # ==============================
+    # =====================================================
 
     async def setup_hook(self) -> None:
 
@@ -288,26 +288,30 @@ class AiGamingBot(discord.Client):
                 len(self.guilds),
             )
 
-    # ==============================
+
+    # =====================================================
     # CHAT
-    # ==============================
+    # =====================================================
 
     async def on_message(
         self,
         message: discord.Message,
     ) -> None:
 
+        # Ignore bots
         if message.author.bot:
             return
 
+        # Ignore webhooks
         if message.webhook_id is not None:
             return
 
         if self.user is None:
             return
 
-        # IMPORTANT:
-        # Bot responds ONLY when mentioned.
+        # =================================================
+        # MENTION ONLY
+        # =================================================
 
         if self.user not in message.mentions:
             return
@@ -408,17 +412,20 @@ class AiGamingBot(discord.Client):
                 completion = (
                     await self.ai.chat.completions.create(
                         model=OPENROUTER_MODEL,
+
                         messages=[
                             {
                                 "role": "system",
                                 "content": SYSTEM_PROMPT,
                             },
+
                             *list(
                                 self.history[
                                     channel_id
                                 ]
                             ),
                         ],
+
                         max_tokens=450,
                         temperature=0.85,
                     )
@@ -547,20 +554,19 @@ class AiGamingBot(discord.Client):
     async def shutdown(self) -> None:
 
         await self.ai.close()
-
         await self.close()
 
 
-# ==============================
+# =========================================================
 # CREATE BOT
-# ==============================
+# =========================================================
 
 bot = AiGamingBot()
 
 
-# ==============================
+# =========================================================
 # /PING
-# ==============================
+# =========================================================
 
 @bot.tree.command(
     name="ping",
@@ -580,9 +586,9 @@ async def ping(
     )
 
 
-# ==============================
+# =========================================================
 # /JOIN
-# ==============================
+# =========================================================
 
 @bot.tree.command(
     name="join",
@@ -596,7 +602,7 @@ async def join(
     if interaction.guild is None:
 
         await interaction.response.send_message(
-            "This command can only be used inside a server.",
+            "❌ استخدم الأمر داخل السيرفر.",
             ephemeral=True,
         )
 
@@ -610,7 +616,24 @@ async def join(
     ):
 
         await interaction.response.send_message(
-            "I couldn't find your server member information.",
+            "❌ مش قادر أحدد بياناتك.",
+            ephemeral=True,
+        )
+
+        return
+
+    # =====================================================
+    # CHECK USER VOICE CHANNEL
+    # =====================================================
+
+    if (
+        member.voice is None
+        or member.voice.channel is None
+    ):
+
+        await interaction.response.send_message(
+            "🎙️ ادخل Voice Channel الأول "
+            "وبعدين استخدم `/join`.",
             ephemeral=True,
         )
 
@@ -618,79 +641,140 @@ async def join(
 
     voice_channel = member.voice.channel
 
-    if voice_channel is None:
-
-        await interaction.response.send_message(
-            "🎙️ ادخل Voice Channel الأول وأنا هاجيلك.",
-            ephemeral=True,
-        )
-
-        return
+    # =====================================================
+    # CONNECT
+    # =====================================================
 
     try:
 
+        existing_voice = (
+            interaction.guild.voice_client
+        )
+
+        # -----------------------------------------------
         # Already connected
-        if interaction.guild.voice_client:
+        # -----------------------------------------------
 
-            voice_client = (
-                interaction.guild.voice_client
-            )
+        if existing_voice is not None:
 
-            if voice_client.channel.id == voice_channel.id:
+            if (
+                existing_voice.channel is not None
+                and existing_voice.channel.id
+                == voice_channel.id
+            ):
 
                 await interaction.response.send_message(
-                    f"🎙️ أنا موجود بالفعل في **{voice_channel.name}**.",
+                    f"🎙️ أنا موجود بالفعل في "
+                    f"**{voice_channel.name}**.",
                     ephemeral=True,
                 )
 
                 return
 
-            await voice_client.move_to(
+            # Move bot
+            await existing_voice.move_to(
                 voice_channel
             )
 
             await interaction.response.send_message(
-                f"🎙️ نقلت نفسي لـ **{voice_channel.name}**.",
+                f"🎙️ نقلت نفسي إلى "
+                f"**{voice_channel.name}**.",
             )
 
             return
 
-        # Connect
-        await voice_channel.connect()
+        # -----------------------------------------------
+        # Connect to Voice
+        # -----------------------------------------------
+
+        await voice_channel.connect(
+            timeout=30,
+            reconnect=True,
+        )
 
         await interaction.response.send_message(
             f"🎙️ دخلت **{voice_channel.name}** معاك!",
         )
 
+        logger.info(
+            "Joined voice channel: %s (%s)",
+            voice_channel.name,
+            voice_channel.id,
+        )
+
+    # =====================================================
+    # PERMISSION ERROR
+    # =====================================================
+
     except discord.Forbidden:
 
+        logger.exception(
+            "VOICE FORBIDDEN"
+        )
+
         await interaction.response.send_message(
-            "❌ معنديش صلاحية أدخل القناة الصوتية.",
+            "❌ البوت معندوش صلاحية دخول الـVoice.\n\n"
+            "فعّل له:\n"
+            "✅ View Channel\n"
+            "✅ Connect\n"
+            "✅ Speak",
             ephemeral=True,
         )
 
-    except discord.ClientException:
+    # =====================================================
+    # TIMEOUT
+    # =====================================================
 
-        await interaction.response.send_message(
-            "❌ مش قادر أدخل القناة الصوتية دلوقتي.",
-            ephemeral=True,
-        )
-
-    except Exception:
+    except asyncio.TimeoutError:
 
         logger.exception(
-            "Could not join voice channel"
+            "VOICE CONNECTION TIMEOUT"
         )
 
         await interaction.response.send_message(
-            "❌ حصل خطأ وأنا بحاول أدخل الـVoice.",
+            "❌ الاتصال بالـVoice أخد وقت طويل وفشل.\n"
+            "جرب `/join` تاني.",
+            ephemeral=True,
+        )
+
+    # =====================================================
+    # CLIENT ERROR
+    # =====================================================
+
+    except discord.ClientException as error:
+
+        logger.exception(
+            "VOICE CLIENT ERROR: %s",
+            error,
+        )
+
+        await interaction.response.send_message(
+            "❌ حصلت مشكلة في اتصال الـVoice:\n"
+            f"`{type(error).__name__}: {error}`",
+            ephemeral=True,
+        )
+
+    # =====================================================
+    # GENERAL ERROR
+    # =====================================================
+
+    except Exception as error:
+
+        logger.exception(
+            "VOICE JOIN ERROR: %s",
+            error,
+        )
+
+        await interaction.response.send_message(
+            "❌ خطأ Voice:\n"
+            f"`{type(error).__name__}: {error}`",
             ephemeral=True,
         )
 
 
-# ==============================
+# =========================================================
 # /LEAVE
-# ==============================
+# =========================================================
 
 @bot.tree.command(
     name="leave",
@@ -704,7 +788,7 @@ async def leave(
     if interaction.guild is None:
 
         await interaction.response.send_message(
-            "This command can only be used inside a server.",
+            "❌ استخدم الأمر داخل السيرفر.",
             ephemeral=True,
         )
 
@@ -725,31 +809,35 @@ async def leave(
 
     try:
 
-        await voice_client.disconnect()
+        await voice_client.disconnect(
+            force=True
+        )
 
         await interaction.response.send_message(
             "🚪 خرجت من الـVoice Channel.",
         )
 
-    except Exception:
+    except Exception as error:
 
         logger.exception(
-            "Could not leave voice channel"
+            "VOICE LEAVE ERROR: %s",
+            error,
         )
 
         await interaction.response.send_message(
-            "❌ حصل خطأ وأنا بحاول أخرج.",
+            "❌ حصل خطأ وأنا بحاول أخرج:\n"
+            f"`{type(error).__name__}: {error}`",
             ephemeral=True,
         )
 
 
-# ==============================
+# =========================================================
 # /GAMING
-# ==============================
+# =========================================================
 
 @bot.tree.command(
     name="gaming",
-    description="Manage Ai Gaming channel settings.",
+    description="Manage Ai Gaming settings.",
 )
 @app_commands.describe(
     action="Choose an action.",
@@ -779,7 +867,7 @@ async def gaming(
     if interaction.guild is None:
 
         await interaction.response.send_message(
-            "Use this command inside a server.",
+            "❌ استخدم الأمر داخل السيرفر.",
             ephemeral=True,
         )
 
@@ -791,7 +879,7 @@ async def gaming(
     ):
 
         await interaction.response.send_message(
-            "Use this command in a text channel.",
+            "❌ استخدم الأمر في Text Channel.",
             ephemeral=True,
         )
 
@@ -813,7 +901,7 @@ async def gaming(
         ):
 
             await interaction.response.send_message(
-                "Only server managers can change this setting.",
+                "❌ الأمر ده للـServer Managers فقط.",
                 ephemeral=True,
             )
 
@@ -826,8 +914,8 @@ async def gaming(
         )
 
         await interaction.response.send_message(
-            "Gaming setting saved.\n"
-            "⚠️ I will STILL reply only when someone mentions me.",
+            "✅ تم الحفظ.\n"
+            "⚠️ البوت هيفضل يرد فقط عند الـMention.",
         )
 
     elif action.value == "disable":
@@ -837,8 +925,8 @@ async def gaming(
         )
 
         await interaction.response.send_message(
-            "Gaming setting disabled.\n"
-            "I will reply only when someone mentions me.",
+            "✅ تم التعطيل.\n"
+            "البوت هيرد فقط عند الـMention.",
         )
 
     else:
@@ -853,14 +941,14 @@ async def gaming(
 
         await interaction.response.send_message(
             f"Gaming mode: **{state}**\n"
-            "Reply mode: **Mention Only**",
+            "Chat mode: **Mention Only**",
             ephemeral=True,
         )
 
 
-# ==============================
+# =========================================================
 # /STATUS
-# ==============================
+# =========================================================
 
 @bot.tree.command(
     name="status",
@@ -886,13 +974,14 @@ async def status(
             interaction.guild.voice_client
         )
 
-        if voice_client is not None:
+        if (
+            voice_client is not None
+            and voice_client.channel is not None
+        ):
 
-            if voice_client.channel is not None:
-
-                voice_status = (
-                    voice_client.channel.name
-                )
+            voice_status = (
+                voice_client.channel.name
+            )
 
     await interaction.response.send_message(
         "\n".join(
@@ -910,9 +999,9 @@ async def status(
     )
 
 
-# ==============================
-# START
-# ==============================
+# =========================================================
+# START BOT
+# =========================================================
 
 def main() -> None:
 
