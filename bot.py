@@ -1,4 +1,3 @@
-print("🔥🔥🔥 NEW AI GAMING CODE IS RUNNING 🔥🔥🔥")
 """Ai Gaming - a friendly multilingual Discord gaming companion."""
 
 from __future__ import annotations
@@ -130,16 +129,6 @@ class AiGamingBot(discord.Client):
         self.config = BotConfig(CONFIG_PATH)
 
         api_key = os.getenv("OPENAI_API_KEY")
-
-        # Diagnostic information only.
-        # The actual API key is NEVER printed.
-        print("")
-        print("========== AI GAMING STARTUP CHECK ==========")
-        print("OPENAI_API_KEY exists:", bool(api_key))
-        print("OPENAI_API_KEY length:", len(api_key) if api_key else 0)
-        print("OPENAI_MODEL:", OPENAI_MODEL)
-        print("==============================================")
-        print("")
 
         if not api_key:
             raise RuntimeError(
