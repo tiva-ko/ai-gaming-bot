@@ -1,4 +1,7 @@
-discord.py>=2.4,<3
+discord.py
 openai>=1.40,<2
 PyNaCl
 davey
+discord-ext-voice-recv
+edge-tts
+SpeechRecognition
