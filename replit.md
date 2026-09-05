@@ -1,15 +1,16 @@
-# [Project name]
+# Ai Gaming Discord Bot
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Ai Gaming is a continuously running Python Discord bot that chats with gamers through OpenAI.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `python bot.py` — run the Ai Gaming Discord bot
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required Replit Secrets: `DISCORD_TOKEN`, `OPENAI_API_KEY`
 
 ## Stack
 
@@ -19,26 +20,37 @@ _Replace the heading above with the project's name, and this line with one sente
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
+- Bot: Python, discord.py, OpenAI API
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `bot.py` — Discord gateway client, AI conversations, slash commands, anti-spam
+- `requirements.txt` — Python runtime dependencies
+- `README.md` — Discord setup and usage instructions
+- `data/bot_config.json` — generated local channel configuration
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- OpenAI is called from the bot process with the `OPENAI_API_KEY` Replit Secret; no key is hardcoded.
+- Natural chat is opt-in per channel through `/gaming enable`, while direct mentions work everywhere.
+- Enabled channel IDs are stored in a small ignored JSON file so a restart does not silently change behavior.
+- Message history is kept in memory per channel and is never written to disk.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Multilingual gaming conversation with Egyptian Arabic, Arabic, Franco Arabic, English, and mixed-language support.
+- `/ping`, `/gaming`, and `/status` slash commands.
+- Per-user cooldown, request concurrency limit, and bot self-message filtering.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the bot simple, reliable, and secret-safe.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Discord **Message Content Intent** must be enabled for natural, non-mention chat.
+- The bot needs both `bot` and `applications.commands` OAuth scopes.
+- Slash command registration is global and may take a few minutes to appear.
 
 ## Pointers
 

@@ -1,0 +1,1 @@
+- [Python bot runtime](python-bot-runtime.md) — install the Python toolchain before packages; Discord gateway bots use portless console workflows.
