@@ -2,6 +2,6 @@ discord.py[voice]
 openai
 PyNaCl
 davey
-discord-ext-voice-recv
+git+https://github.com/jstewart0788/discord-ext-voice-recv-dave.git
 edge-tts
 SpeechRecognition
