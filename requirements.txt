@@ -1,7 +1,7 @@
 discord.py[voice]>=2.7.1
-openai
 PyNaCl
-davey>=0.1.6
-git+https://github.com/porgeeratad/discord-ext-voice-recv.git@dave-decrypt
+davey>=0.1.4
+git+https://github.com/jstewart0788/discord-ext-voice-recv-dave.git
 edge-tts
 SpeechRecognition
+openai
