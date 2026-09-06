@@ -1,7 +1,6 @@
-discord.py[voice]>=2.7.1
+discord.py[voice]==2.7.1
 PyNaCl
-davey>=0.1.4
-git+https://github.com/jstewart0788/discord-ext-voice-recv-dave.git
+davey==0.1.6
 edge-tts
 SpeechRecognition
 openai
